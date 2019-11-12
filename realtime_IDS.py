@@ -405,8 +405,8 @@ while True:
             # fork a child process to connect to ssh of web server and drop the malicious ip
             pid = os.fork()
             if pid == 0:
-                print("ssh root@cs3244.oulove.me 'iptables -I INPUT -s %s -j DROP'" % ip)
-                #os.popen("ssh root@cs3244.oulove.me 'iptables -I INPUT -s %s -j DROP'" % ip)
+                #SSh into the server and block the traffic here
+                print("ssh <server> 'iptables -I INPUT -s %s -j DROP'" % ip)
                 exit()
     sleep(3)
 
