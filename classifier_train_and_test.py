@@ -5,6 +5,7 @@ import math
 import os
 import json
 import random
+import matplotlib.pyplot as plt
 
 from array import array
 from sklearn.impute import SimpleImputer
@@ -31,6 +32,22 @@ from tensorflow.keras.layers import Masking, Dropout
 from tensorflow.keras.layers import LeakyReLU
 
 
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+def f1_m(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 
 def flatten_json(nested_json, exclude=['']):
@@ -108,32 +125,31 @@ def cvt_to_numeric_and_cat_and_drop_not_approved_col(d, approved_columns):
 
 
 
-b_size = 15
-num_of_test_files = 5
-num_of_val_files = 5
+b_size = 64
+num_of_test_files = 20
+num_of_val_files = 30
 
-pd.set_option('display.max_columns', 50)
+#pd.set_option('display.max_columns', 50)
 
-normal_dirs =  ["/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/1", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/2", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/3",	
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/outsslv3/poodle/1", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/outsslv3/poodle/2", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/outsslv3/poodle/3",
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/POODLE_TLS/1", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/POODLE_TLS/2", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/POODLE_TLS/3",
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/1", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/2", 
-                "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/3"]
 # normal_dirs =  ["/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/1", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/2", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/3",	
 #                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/outsslv3/poodle/1", 
-#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/1"]
-breach_dirs = ["/home/3244-1910-0002-X/NIS_TestData/Breach/breach_traffic",
-               "/home/3244-1910-0002-X/NIS_TestData/RC4/captures", 
-               "/home/3244-1910-0002-X/NIS_TestData/Poodle"]
-file_list = breach_dirs + normal_dirs
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/outsslv3/poodle/2", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/outsslv3/poodle/3",
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/POODLE_TLS/1", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/POODLE_TLS/2", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/POODLE_TLS/3",
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/1", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/2", 
+#                 "/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/RC4/3"]
+# breach_dirs = ["/home/3244-1910-0002-X/NIS_TestData/Breach/breach_traffic",
+#                "/home/3244-1910-0002-X/NIS_TestData/RC4/captures", 
+#                "/home/3244-1910-0002-X/NIS_TestData/Poodle"]
+normal_dirs =  ["/home/3244-1910-0002-X/NIS_TestData/Normal/normal/output_TLS/breach/1"]
+breach_dirs = ["/home/3244-1910-0002-X/NIS_TestData/Breach/breach_traffic"]
 
+file_list = breach_dirs + normal_dirs
 
 d = pd.DataFrame()
 valiation_dataframe = pd.DataFrame()
@@ -148,7 +164,7 @@ freq = {}
 approved_columns = []
 
 limit_files = True
-limit = 15
+limit = 150
 
 # to find the average number of rows in each file
 for parent_dir in file_list:
@@ -171,8 +187,13 @@ for parent_dir in file_list:
         # 1 for attack, 0 for normal data
         if parent_dir in normal_dirs:
             d1.insert(d1.shape[1], "class", [0] * d1.shape[0], True)
+            print("Normal")
+            print(parent_dir)
         else:
             d1.insert(d1.shape[1], "class", [1] * d1.shape[0], True)
+            print("Attack")
+            print(parent_dir)
+
 
         for i in d1:
             if (i in freq):
@@ -215,8 +236,12 @@ for parent_dir in file_list:
         # 1 for attack, 0 for normal data
         if parent_dir in normal_dirs:
             d1.insert(d1.shape[1], "class", [0] * d1.shape[0], True)
+            print("Normal")
+            print(parent_dir)
         else:
             d1.insert(d1.shape[1], "class", [1] * d1.shape[0], True)
+            print("Attack")
+            print(parent_dir)
         
         if (count < num_of_test_files):
             test_dataframe = test_dataframe.append(d1, ignore_index=True)
@@ -241,7 +266,7 @@ valiation_dataframe = cvt_to_numeric_and_cat_and_drop_not_approved_col(valiation
 
 print("Saving trained_data to pickle")
 print(d.describe())
-d.to_pickle('trained_data.ml')
+d.to_pickle('trained_data.ml');
 # Matching the columns in both test data and train data
 train_col = d.columns
 test_col = test_dataframe.columns
@@ -250,8 +275,8 @@ common_columns = list(set(train_col).intersection(test_col, val_col)) #EL NUMERO
 d = d[common_columns]
 test_dataframe = test_dataframe[common_columns]
 valiation_dataframe = valiation_dataframe[common_columns] #EL NUMERO!!!!!
-print("Saving common_columns")
 np.save("common_columns.npy", common_columns)
+
 
 new_d = d.copy()
 test_data = test_dataframe.copy()
@@ -269,6 +294,18 @@ dy_train = []
 dy_val = []
 dy_test = []
 
+print("Train")
+print(len(y_train))
+for i in range(len(y_train)):
+    print(y_train[i])
+print("Val")
+print(len(y_val))
+for i in range(len(y_val)):
+    print(y_val[i])
+print("Train")
+print(len(y_test))
+for i in range(len(y_test)):
+    print(y_test[i])
 
 # one hot of categorical variables
 for i in new_d.select_dtypes(include='category'):
@@ -300,7 +337,9 @@ for i in new_d: # each column in the train dataframe
 # converting train data from 2d array into 3d array
 for i in range(0, num_of_files):
     df1 = new_d.iloc[0:avg_row]
-    dy_train += [sum(y_train[0:avg_row]) / (avg_row)]
+    dy_train += [sum(y_train[0:avg_row]) / avg_row]
+    #dy_train.append(y_train[avg_row*i])
+    y_train = y_train[avg_row:]
 
     print("Train: i is: {} and d's shape is: {} and stacked_df's shape is: {} and df1's shape is: {}".format(i, new_d.shape, stacked_df.shape, df1.shape))
     if i == 0:
@@ -322,8 +361,10 @@ print(stacked_df.shape)
 twoDim = True
 for i in range(0, num_of_test_files * len(file_list)):
     df1 = test_data.iloc[0:avg_row]
-    dy_test += [sum(y_test[0:avg_row]) / (avg_row)]
-    
+    dy_test += [sum(y_test[0:avg_row]) / avg_row]
+   # dy_test.append(y_test[avg_row*i])
+    y_test = y_test[avg_row:]
+
     print("Test: i is: {} and d's shape is: {} and stacked_df's shape is: {} and df1's shape is: {}".format(i, test_data.shape, test_stacked_df.shape, df1.shape))
     if i == 0:
         test_stacked_df = df1.copy()
@@ -347,8 +388,10 @@ print(test_stacked_df.shape)
 twoDim = True
 for i in range(0, num_of_val_files * len(file_list)):
     df1 = val_data.iloc[0:avg_row]
-    dy_val += [sum(y_val[0:avg_row]) / (avg_row)]
-    
+    dy_val += [sum(y_val[0:avg_row]) / avg_row]
+    #dy_val.append(y_val[avg_row*i])
+    y_val = y_val[avg_row:]
+
     print("Val: i is: {} and d's shape is: {} and stacked_df's shape is: {} and df1's shape is: {}".format(i, new_d.shape, stacked_df.shape, df1.shape))
     if i == 0:
         val_stacked_df = df1.copy()
@@ -366,7 +409,11 @@ if twoDim:
     val_stacked_df = np.expand_dims(val_stacked_df, axis=0)
 print(val_stacked_df.shape)
 
-
+print("BAR ---------------------------------------------------")
+print(y_test)
+print(dy_test)
+print(dy_train)
+print(dy_val)   
 
 # model
 session = tf.Session()
@@ -400,7 +447,7 @@ with session:
     model.add(LeakyReLU(alpha=0.05))
     model.add(TimeDistributed(Dense(n_features)))
     adam = keras.optimizers.Adam()
-    model.compile(optimizer=adam, loss='mse')
+    model.compile(optimizer=adam, loss='mse',  metrics=["accuracy"])
     print(model.summary())
     mc1 = ModelCheckpoint('model.h5', monitor='val_loss', mode='min', verbose=1, save_best_only=True)
 
@@ -408,14 +455,17 @@ with session:
     print("Train data: ")
     print(stacked_df.shape)
     print(len(dy_train))
+    print(dy_train)
     print("Test data: ")
     print(test_stacked_df.shape)
     print(len(dy_test))
+    print(dy_test)
     print("Validation data: ")
     print(val_stacked_df.shape)
     print(len(dy_val))
+    print(dy_val)
 
-    model.fit(stacked_df, stacked_df, epochs=100, steps_per_epoch=(num_of_files//b_size), verbose=1, validation_data=(val_stacked_df,val_stacked_df), validation_steps=(num_of_val_files* len(file_list)//b_size))
+    model.fit(stacked_df, stacked_df, epochs=1000, steps_per_epoch=(num_of_files//b_size)+1, verbose=1, validation_data=(val_stacked_df,val_stacked_df), validation_steps=(num_of_val_files* len(file_list)//b_size)+1)
 
     # Save model
     model.save("model.h5")
@@ -447,7 +497,7 @@ with session:
     print("Total Error: ", totalError)
 
     # Testing
-    results = model.evaluate(test_stacked_df, test_stacked_df, verbose=1, steps=(num_of_test_files* len(file_list)//b_size))
+    results = model.evaluate(test_stacked_df, test_stacked_df, verbose=1, steps=(num_of_test_files* len(file_list)//b_size +1))
     print(model.metrics_names)
     print(results)
 
@@ -477,7 +527,7 @@ with session:
     print("Validation data: ")
     print(val_stacked_df.shape)
     print(len(dy_val))
-    classifier_output = classifier.fit(stacked_df, dy_train, epochs=50, steps_per_epoch=(num_of_files//b_size), verbose=1, validation_data=(val_stacked_df, dy_val), validation_steps=(num_of_val_files* len(file_list)//b_size))
+    classifier_output = classifier.fit(stacked_df, dy_train, epochs=100, steps_per_epoch=(num_of_files//b_size)+1, verbose=1, validation_data=(val_stacked_df, dy_val), validation_steps=(num_of_val_files* len(file_list)//b_size)+1)
     
     # Save classifier
     classifier.save("classifier.h5")
