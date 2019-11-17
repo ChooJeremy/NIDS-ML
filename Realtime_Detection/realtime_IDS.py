@@ -65,7 +65,10 @@ def cvt_to_decimal(x):
 def preprocess(jsonstr):
     d = pd.DataFrame([flatten_json(x) for x in jsonstr])
 
-    d = d.drop("_score", axis=1)
+    try:
+        d = d.drop("_score", axis=1)
+    except:
+        pass
     # d = d["_source_layers_tcp_tcp.payload"].apply(cvt_to_decimal)
     # d = d["_source_layers_tcp_tcp.segment_data"].apply(cvt_to_decimal)
     d["_source_layers_ip_ip.id"] = d["_source_layers_ip_ip.id"].apply(cvt_to_decimal)
@@ -201,7 +204,7 @@ num_of_test_files_per_folder = 200
 approved_columns = np.load("approved_columns.npy", allow_pickle=True)
 #print("Approved columns length: ", len(approved_columns))
 #print("Average row: "  + str(avg_row))
-avg_row = 1382
+avg_row = 980
 
 
 # to make each have same time steps joining it to the dataframe
@@ -264,6 +267,8 @@ while True:
     pcaps = re.findall(r'(\d+\.\d+\.\d+\.\d+\.\d+\.pcap)', output)
     #print(ips)
     for pcap in pcaps:
+        if pcap[-5:] != '.pcap':
+            pass
         print("analysing %s" %pcap)
 
         os.system("tshark -r ./packet_captured/" + str(pcap) + " -l -n -T json > ./packet_captured/" + str(pcap) + ".json");
@@ -390,10 +395,10 @@ while True:
             malicious = 0
             print(yhat)
             if yhat[0][0] < 0.5:
-                print("Detected non-malicious")
+                print("\033[1;32;43m Detected non-malicious in \033[0m"+pcap)
                 malicious = 0;
             else:
-                print("Detected malicious")
+                print("\033[1;32;45m Detected malicious in \033[0m"+pcap)
                 malicious = 1;
         
         #remember to delete the old pcap file
@@ -405,8 +410,8 @@ while True:
             # fork a child process to connect to ssh of web server and drop the malicious ip
             pid = os.fork()
             if pid == 0:
-                #SSh into the server and block the traffic here
-                print("ssh <server> 'iptables -I INPUT -s %s -j DROP'" % ip)
+                print("ssh root@cs3244.oulove.me 'iptables -I INPUT -s %s -j DROP'" % ip)
+                os.popen("ssh root@cs3244.oulove.me 'iptables -I INPUT -s %s -j DROP'" % ip)
                 exit()
     sleep(3)
 
